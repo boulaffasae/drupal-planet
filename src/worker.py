@@ -89,8 +89,18 @@ class Default(WorkerEntrypoint):
                         "input": [text],
                     }),
                 )
+
+                if not response.ok:
+                    body_text = await response.text()
+                    errors.append({"item": link, "error": f"Mistral API error {response.status}: {body_text}"})
+                    continue
+
                 data = await response.json()
                 embedding = data["data"][0]["embedding"]
+
+                if len(embedding) != 1024:
+                    errors.append({"item": link, "error": f"bad embedding dims ({len(embedding)}) for text={text!r}"})
+                    continue
 
                 await self.env.VECTOR_DB.insert([{
                     "id": vector_id,
