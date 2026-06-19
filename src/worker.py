@@ -1,3 +1,5 @@
+from pyodide.ffi import to_js
+from js import Object
 import json
 from workers import WorkerEntrypoint, Request, Response, fetch
 from bs4 import BeautifulSoup
@@ -102,15 +104,20 @@ class Default(WorkerEntrypoint):
                     errors.append({"item": link, "error": f"bad embedding dims ({len(embedding)}) for text={text!r}"})
                     continue
 
-                await self.env.VECTOR_DB.insert([{
-                    "id": vector_id,
-                    "values": embedding,
-                    "metadata": {
-                        "title": title,
-                        "link": link,
-                        "description": description[:500],  # Vectorize metadata size limit
-                    },
-                }])
+                vector_payload = to_js(
+                    [{
+                        "id": vector_id,
+                        "values": embedding,
+                        "metadata": {
+                            "title": title,
+                            "link": link,
+                            "description": description[:500],
+                        },
+                    }],
+                    dict_converter=Object.fromEntries,
+                )
+
+                await self.env.VECTOR_DB.upsert(vector_payload)
                 processed += 1
             except Exception as e:
                 errors.append({"item": title, "error": str(e)})
