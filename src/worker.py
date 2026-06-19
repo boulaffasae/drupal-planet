@@ -92,8 +92,9 @@ class Default(WorkerEntrypoint):
                 errors.append({"item": title, "error": "missing link, skipped"})
                 continue
 
-            clean_link = str(link)
-            already_processed = self.env.D_ONE.prepare("SELECT 1 FROM nodes WHERE link = ?").bind(clean_link)
+            already_processed = await self.env.D_ONE.prepare(
+                "SELECT 1 FROM nodes WHERE link = ?"
+            ).bind(str(link)).first()
             if already_processed:
                 continue
 
