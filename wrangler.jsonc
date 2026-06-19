@@ -1,0 +1,12 @@
+{
+  "name": "drupal-planet",
+  "main": "src/worker.py",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["python_workers"],
+  "vectorize": [
+    {
+      "binding": "VECTOR_DB",
+      "index_name": "nodes"
+    }
+  ]
+}
