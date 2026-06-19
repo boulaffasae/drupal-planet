@@ -8,12 +8,5 @@
       "binding": "VECTOR_DB",
       "index_name": "nodes"
     }
-  ],
-  "python": {
-    "packages": [
-      "beautifulsoup4",
-      "lxml",
-      "mistralai"
-    ]
-  }
+  ]
 }
