@@ -113,7 +113,7 @@ class Default(WorkerEntrypoint):
                 }])
                 processed += 1
             except Exception as e:
-                errors.append({"item": link, "error": str(e)})
+                errors.append({"item": title, "error": str(e)})
                 continue
 
         return Response(
