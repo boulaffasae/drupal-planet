@@ -1,7 +1,6 @@
 import json as json_module
 from workers import WorkerEntrypoint, Request, Response
 from bs4 import BeautifulSoup
-from mistralai import Mistral
 import hashlib
 
 
@@ -52,7 +51,6 @@ class Default(WorkerEntrypoint):
             )
 
         api_key = getattr(self.env, "MISTRAL_API_KEY")
-        client = Mistral(api_key=api_key)
 
         processed = 0
         errors = []
@@ -79,8 +77,20 @@ class Default(WorkerEntrypoint):
             vector_id = hashlib.md5(link.encode()).hexdigest()
 
             try:
-                res = client.embeddings.create(model="mistral-embed", inputs=[text])
-                embedding = res.data[0].embedding
+                response = await fetch(
+                    "https://api.mistral.ai/v1/embeddings",
+                    method="POST",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                    },
+                    body=json_module.dumps({
+                        "model": "mistral-embed",
+                        "input": [text],
+                    }),
+                )
+                data = await response.json()
+                embedding = data["data"][0]["embedding"]
 
                 await self.env.VECTOR_DB.insert([{
                     "id": vector_id,
