@@ -1,15 +1,24 @@
 {
-  "name": "drupal-planet",
-  "main": "src/worker.py",
-  "compatibility_date": "2026-01-01",
-  "compatibility_flags": ["python_workers"],
-  "vectorize": [
-    {
-      "binding": "VECTOR_DB",
-      "index_name": "nodes"
-    }
-  ],
-  "observability": {
-    "enabled": false
-  }
+	"name": "drupal-planet",
+	"main": "src/worker.py",
+	"compatibility_date": "2026-01-01",
+	"compatibility_flags": [
+		"python_workers"
+	],
+	"vectorize": [
+		{
+			"binding": "VECTOR_DB",
+			"index_name": "nodes"
+		}
+	],
+	"observability": {
+		"enabled": false
+	},
+	"d1_databases": [
+		{
+			"binding": "D_ONE",
+			"database_name": "nodes",
+			"database_id": "7d61f622-04a3-4d57-97bd-7f07fc4e81fd"
+		}
+	]
 }

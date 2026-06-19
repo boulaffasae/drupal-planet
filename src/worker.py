@@ -110,16 +110,19 @@ class Default(WorkerEntrypoint):
                     [{
                         "id": vector_id,
                         "values": embedding,
-                        "metadata": {
-                            "title": title,
-                            "link": link,
-                            "description": description,
-                        },
                     }],
                     dict_converter=Object.fromEntries,
                 )
 
                 await self.env.VECTOR_DB.upsert(vector_payload)
+
+                await self.env.D_ONE.prepare(
+                    """
+                    INSERT OR REPLACE INTO nodes (id, link, title, description) 
+                    VALUES (?, ?, ?, ?)
+                    """
+                ).bind(vector_id, link, title, description).run()
+
                 processed += 1
             except Exception as e:
                 errors.append({"item": link, "error": str(e)})
@@ -204,14 +207,34 @@ class Default(WorkerEntrypoint):
                 query_vector,
                 to_js({"topK": top_k, "returnMetadata": "all"}, dict_converter=Object.fromEntries),
             )
+
+            raw_matches = list(results.matches)
+            scores = {m.id: m.score for m in raw_matches}
+            match_ids = list(scores.keys())
+
+            if not match_ids:
+                return Response(
+                    json.dumps({"results": []}),
+                    headers={"Content-Type": "application/json", **self._CORS_HEADERS},
+                )
+
+            placeholders = ", ".join(["?"] * len(match_ids))
+            d1_results = await self.env.D_ONE.prepare(
+                f"SELECT id, title, link, description FROM nodes WHERE id IN ({placeholders})"
+            ).bind(*match_ids).all()
+            db_rows = list(d1_results.results.to_py())
+
+            rows_by_id = {row["id"]: row for row in db_rows}
             matches = [
                 {
-                    "id": m.id,
-                    "score": m.score,
-                    "metadata": m.metadata.to_py() if hasattr(m.metadata, "to_py") else {},
+                    "title": rows_by_id[vid]["title"],
+                    "link": rows_by_id[vid]["link"],
+                    "description": rows_by_id[vid]["description"],
                 }
-                for m in results.matches
+                for vid in match_ids
+                if vid in rows_by_id
             ]
+
         except Exception as e:
             return Response(
                 json.dumps({"error": f"Query failed: {str(e)}"}),
