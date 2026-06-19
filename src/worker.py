@@ -96,7 +96,7 @@ class Default(WorkerEntrypoint):
                     continue
 
                 data = await response.json()
-                embedding = data["data"][0]["embedding"]
+                embedding = list(data["data"][0]["embedding"])
 
                 if len(embedding) != 1024:
                     errors.append({"item": link, "error": f"bad embedding dims ({len(embedding)}) for text={text!r}"})
