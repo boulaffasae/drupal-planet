@@ -113,7 +113,7 @@ class Default(WorkerEntrypoint):
                         "metadata": {
                             "title": title,
                             "link": link,
-                            "description": description[:500],
+                            "description": description,
                         },
                     }],
                     dict_converter=Object.fromEntries,
