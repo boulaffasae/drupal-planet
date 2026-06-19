@@ -29,6 +29,15 @@ class Default(WorkerEntrypoint):
                 headers={"Content-Type": "application/json"},
             )
 
+        cron_secret = getattr(self.env, "CRON_SECRET", None)
+        auth_header = request.headers.get("Authorization")
+        if not cron_secret or auth_header != cron_secret:
+            return Response(
+                json.dumps({"error": "Unauthorized"}),
+                status=401,
+                headers={"Content-Type": "application/json"},
+            )
+
         try:
             body = await request.json()
             url = body.get("url")
@@ -126,7 +135,16 @@ class Default(WorkerEntrypoint):
             headers={"Content-Type": "application/json"},
         )
 
+    _CORS_HEADERS = {
+        "Access-Control-Allow-Origin": "https://abzhcompany.com",
+        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Headers": "Accept, Content-Type, Authorization",
+    }
+
     async def _query(self, request: Request) -> Response:
+        if request.method == "OPTIONS":
+            return Response("", status=204, headers=self._CORS_HEADERS)
+
         if request.method != "POST":
             return Response(
                 json.dumps({"error": "Method not allowed"}),
@@ -138,18 +156,35 @@ class Default(WorkerEntrypoint):
             body = await request.json()
             query_text = body.get("query")
             top_k = int(body.get("top_k", 5))
+            turnstile_token = body.get("token")
         except Exception:
             return Response(
                 json.dumps({"error": "Invalid JSON body"}),
                 status=400,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
             )
 
         if not query_text:
             return Response(
                 json.dumps({"error": "Missing 'query' field"}),
                 status=400,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
+            )
+
+        if not turnstile_token:
+            return Response(
+                json.dumps({"error": "Missing Turnstile token"}),
+                status=400,
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
+            )
+
+        remote_ip = request.headers.get("CF-Connecting-IP")
+        turnstile_ok = await self._verify_turnstile(turnstile_token, remote_ip)
+        if not turnstile_ok:
+            return Response(
+                json.dumps({"error": "Turnstile verification failed"}),
+                status=403,
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
             )
 
         api_key = getattr(self.env, "MISTRAL_API_KEY")
@@ -160,7 +195,7 @@ class Default(WorkerEntrypoint):
             return Response(
                 json.dumps({"error": f"Embedding failed: {str(e)}"}),
                 status=502,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
             )
 
         try:
@@ -181,13 +216,28 @@ class Default(WorkerEntrypoint):
             return Response(
                 json.dumps({"error": f"Query failed: {str(e)}"}),
                 status=500,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **self._CORS_HEADERS},
             )
 
         return Response(
             json.dumps({"results": matches}),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", **self._CORS_HEADERS},
         )
+
+    async def _verify_turnstile(self, token: str, remote_ip: str | None) -> bool:
+        secret = getattr(self.env, "TURNSTILE_SECRET_KEY")
+        payload = {"secret": secret, "response": token}
+        if remote_ip:
+            payload["remoteip"] = remote_ip
+
+        response = await fetch(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps(payload),
+        )
+        data = await response.json()
+        return bool(data.get("success"))
 
     async def _embed(self, api_key: str, text: str) -> list:
         response = await fetch(
