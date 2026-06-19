@@ -1,5 +1,5 @@
-import json as json_module
-from workers import WorkerEntrypoint, Request, Response
+import json
+from workers import WorkerEntrypoint, Request, Response, fetch
 from bs4 import BeautifulSoup
 import hashlib
 
@@ -8,7 +8,7 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request: Request) -> Response:
         if request.method != "POST":
             return Response(
-                json_module.dumps({"error": "Method not allowed"}),
+                json.dumps({"error": "Method not allowed"}),
                 status=405,
                 headers={"Content-Type": "application/json"},
             )
@@ -18,14 +18,14 @@ class Default(WorkerEntrypoint):
             url = body.get("url")
         except Exception:
             return Response(
-                json_module.dumps({"error": "Invalid JSON body"}),
+                json.dumps({"error": "Invalid JSON body"}),
                 status=400,
                 headers={"Content-Type": "application/json"},
             )
 
         if not url:
             return Response(
-                json_module.dumps({"error": "Missing 'url' field"}),
+                json.dumps({"error": "Missing 'url' field"}),
                 status=400,
                 headers={"Content-Type": "application/json"},
             )
@@ -35,7 +35,7 @@ class Default(WorkerEntrypoint):
             content = await feed_response.text()
         except Exception as e:
             return Response(
-                json_module.dumps({"error": f"Failed to fetch feed: {str(e)}"}),
+                json.dumps({"error": f"Failed to fetch feed: {str(e)}"}),
                 status=502,
                 headers={"Content-Type": "application/json"},
             )
@@ -45,7 +45,7 @@ class Default(WorkerEntrypoint):
 
         if not items:
             return Response(
-                json_module.dumps({"error": "No items found in feed"}),
+                json.dumps({"error": "No items found in feed"}),
                 status=422,
                 headers={"Content-Type": "application/json"},
             )
@@ -84,7 +84,7 @@ class Default(WorkerEntrypoint):
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {api_key}",
                     },
-                    body=json_module.dumps({
+                    body=json.dumps({
                         "model": "mistral-embed",
                         "input": [text],
                     }),
@@ -107,7 +107,7 @@ class Default(WorkerEntrypoint):
                 continue
 
         return Response(
-            json_module.dumps({
+            json.dumps({
                 "status": "success",
                 "processed": processed,
                 "total": len(items),
