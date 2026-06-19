@@ -215,7 +215,6 @@ class Default(WorkerEntrypoint):
             )
 
             raw_matches = list(results.matches)
-            # It's better to keep track of scores alongside IDs
             scores = {str(m.id): m.score for m in raw_matches}
             match_ids = list(scores.keys())
 
@@ -225,30 +224,24 @@ class Default(WorkerEntrypoint):
                     headers={"Content-Type": "application/json", **self._CORS_HEADERS},
                 )
 
-            # 1. Fetch from D1
             placeholders = ", ".join(["?"] * len(match_ids))
             d1_results = await self.env.D_ONE.prepare(
                 f"SELECT id, title, link, description FROM nodes WHERE id IN ({placeholders})"
             ).bind(*match_ids).all()
             
-            # 2. Safely convert to a standard Python list of dicts
-            db_rows = d1_results.results.to_py()
+            db_rows = list(d1_results.results)
 
-            # 3. Ensure IDs are strings for reliable mapping
-            rows_by_id = {str(row["id"]): row for row in db_rows}
+            rows_by_id = {str(row.get("id")): row for row in db_rows}
             
-            # 4. Build final matches and include the vector score
-            matches = []
-            for vid in match_ids:
-                if vid in rows_by_id:
-                    row = rows_by_id[vid]
-                    matches.append({
-                        "id": vid,
-                        "title": row.get("title"),
-                        "link": row.get("link"),
-                        "description": row.get("description"),
-                        "score": scores[vid]  # Highly recommended to pass this back to the client!
-                    })
+            matches = [
+                {
+                    "title": rows_by_id[str(vid)].get("title"),
+                    "link": rows_by_id[str(vid)].get("link"),
+                    "description": rows_by_id[str(vid)].get("description"),
+                }
+                for vid in match_ids
+                if str(vid) in rows_by_id
+            ]
         except Exception as e:
             return Response(
                 json.dumps({"error": f"Query failed: {str(e)}"}),
