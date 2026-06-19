@@ -12,10 +12,7 @@
 		}
 	],
 	"observability": {
-		"logs": {
-			"enabled": false,
-			"invocation_logs": true
-		}
+	    "enabled": true
 	},
 	"d1_databases": [
 		{
