@@ -8,5 +8,8 @@
       "binding": "VECTOR_DB",
       "index_name": "nodes"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": false
+  }
 }
