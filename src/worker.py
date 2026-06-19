@@ -92,7 +92,8 @@ class Default(WorkerEntrypoint):
                 errors.append({"item": title, "error": "missing link, skipped"})
                 continue
 
-            already_processed = self.env.D_ONE.prepare("SELECT 1 FROM nodes WHERE link = ?").bind([link]).first()
+            clean_link = str(link)
+            already_processed = self.env.D_ONE.prepare("SELECT 1 FROM nodes WHERE link = ?").bind(clean_link)
             if already_processed:
                 continue
 
@@ -125,7 +126,7 @@ class Default(WorkerEntrypoint):
                     INSERT OR REPLACE INTO nodes (id, link, title, description) 
                     VALUES (?, ?, ?, ?)
                     """
-                ).bind([vector_id, link, title, description]).run()
+                ).bind(str(vector_id), str(link), str(title), str(description)).run()
 
                 processed += 1
             except Exception as e:
